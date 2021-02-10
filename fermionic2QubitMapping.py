@@ -87,14 +87,37 @@ def label2Pauli(s):
     return Pauli(z = zs, x = xs)
 
 
-def get_entry_operators(num_so, num_e, labeling_method): ## only consider i >= j excitations
+def get_entry_operators(num_so, num_e, labeling_method):
+    """
+        Entry-operators are tensor products of some of the following operators: ['+', '-', '1', '0']. 
+        '+' and '-' are qubit creation/annihilation operators, respectively. 
+        '1' and '0' are counting operators for qubit state 1 and 0, respectively.
+        Note that '+' = (X-iY)/2, '-' = (X+iY)/2, '1' = (I-Z)/2, '0' = (I+Z)/2.
+
+        This function considers all possible excitations and calculates corresponding excitation oprators
+        in terms of entry-operators. 
+
+        Args:
+            num_so (int) : Number of spin-orbitals(must be even).
+            num_e (int) : Number of electrons(must be even).
+            labeling_method (function) : 
+                It maps each electron occupation configuration to a qubit computational basis state.
+                By default it uses `default_labeling` method. 
+                If it is set to `None`, default method will be used. 
+                Please make sure that the input/output types match that of the `default_labeling` function.
+        Returns:
+            (tuple(int, dict(tuple(int, int), list(tuple(float, str))))):
+                First nubmer in the tuple is total required number of qubits. 
+                The second element is the mapping dictionary whose keys are indices of excitations
+                ((i, j)->'a_i^ a_j'), and its values are list of entry-operators(str) with corresponding
+                coefficients(float).
+
+    """
     mapping = {}
     configs = all_config(num_so // 2, num_e // 2)
-    # print('configs:', configs)
     half_qubit = int(ceil(log2(len(configs))))
     q2o, o2q = labeling_method(configs)
     excitations = possible_excitations(num_so // 2)
-    # print('excitations:', excitations)
     hopping_in_entry = {('0', '0'): '0',
                         ('1', '1'): '1',
                         ('0', '1'): '+',
@@ -174,7 +197,7 @@ def operator2WeightedPauliOperator(operator, coef=1, num_qubit=None):
 
 def get_naive_mapping_from_entry(entry_operators, num_qubit=None):
     """
-    get the naive mapping from a given entry_operator dictionary 
+    Get the naive mapping from a given entry_operator dictionary 
 
     Returns:
         naive_mapping (dict((tuple(int, int)), qiskit.quantum_info.Pauli)): 
@@ -202,7 +225,23 @@ def complete_mapping(naive_mapping):
 
 def fermionic2QubitMapping(n_so, n_e, labeling_method = default_labeling):
     """
-        Generate 
+        Generate qubit mapping for given number of spin-orbitals and electrons 
+        based on certain labeling method(from occupation configurations to qubit states).
+
+        Args:
+            n_so (int) : Number of spin-orbitals, must be even as we only consider RHF configuration.
+            n_e (int) : Number of electrons, must be even.
+            labeling_method (function) : 
+                It maps each electron occupation configuration to a qubit computational basis state.
+                By default it uses `default_labeling` method. 
+                If it is set to `None`, default method will be used. 
+                Please make sure that the input/output types match that of the `default_labeling` function.
+
+        Returns:
+            (dict(tuple(int, int), WeightedPauliOperator)) : 
+                A dictionary whose keys are indices of excitation operators((i, j)->'a_i^ a_j') 
+                and values are corresponding Pauli operators(WeightedPauliOperator).
+                
     """
     if labeling_method == None: labeling_method = default_labeling
     num_qubit, entry_operators = get_entry_operators(n_so, n_e, labeling_method)
