@@ -87,7 +87,7 @@ def label2Pauli(s):
     return Pauli(z = zs, x = xs)
 
 
-def get_entry_operators(num_so, num_e, labeling_method):
+def get_entry_operators(num_so, num_e, labeling_method, mode):
     """
         Entry-operators are tensor products of some of the following operators: ['+', '-', '1', '0']. 
         '+' and '-' are qubit creation/annihilation operators, respectively. 
@@ -113,53 +113,84 @@ def get_entry_operators(num_so, num_e, labeling_method):
                 coefficients(float).
 
     """
-    mapping = {}
-    configs = all_config(num_so // 2, num_e // 2)
-    half_qubit = int(ceil(log2(len(configs))))
-    q2o, o2q = labeling_method(configs)
-    excitations = possible_excitations(num_so // 2)
-    hopping_in_entry = {('0', '0'): '0',
-                        ('1', '1'): '1',
-                        ('0', '1'): '+',
-                        ('1', '0'): '-'} ## (from, to)
-    def dual(s):
-        return s[half_qubit:] + s[:half_qubit]
+    if mode == 'rhf':
+        mapping = {}
+        configs = all_config(num_so // 2, num_e // 2)
+        half_qubits = int(ceil(log2(len(configs))))
+        q2o, o2q = labeling_method(configs)
+        excitations = possible_excitations(num_so // 2)
+        hopping_in_entry = {('0', '0'): '0',
+                            ('1', '1'): '1',
+                            ('0', '1'): '+',
+                            ('1', '0'): '-'} ## (from, to)
+        def dual(s):
+            return s[half_qubits:] + s[:half_qubits]
 
-    for i, j in excitations:
-        mapping[(i, j)] = []
-        mapping[(i + num_so//2, j + num_so//2)] = []
-        for c in configs:
-            N = len(c)
-            creation = N - i - 1
-            annihilation = N - j - 1
-            if c[creation] == '0' and c[annihilation] == '1':
-                hopped_c = c[: creation] + '1' + c[creation + 1 : annihilation] + '0' + c[annihilation + 1 :]
-                parity = 1 - 2 * (sum([int(i) for i in c[creation + 1 : annihilation]]) % 2)
-                entry_op = ''
-                for q0, q in zip(o2q[c], o2q[hopped_c]):
-                    entry_op += hopping_in_entry[(q0, q)]
-                entry_op += ('I' * half_qubit) 
-                mapping[(i, j)].append((parity, entry_op))
-                mapping[(i + num_so//2, j + num_so//2)].append((parity, dual(entry_op)))
-            elif creation == annihilation and c[creation] == '1':
-                entry_op = ''
-                for q in o2q[c]: 
-                    entry_op += hopping_in_entry[(q, q)]
-                entry_op += ('I' * half_qubit)
-                mapping[(i, j)].append((1, entry_op))
-                mapping[(i + num_so//2, j + num_so//2)].append((1, dual(entry_op)))
-    return 2 * half_qubit, mapping
+        for i, j in excitations:
+            mapping[(i, j)] = []
+            mapping[(i + num_so//2, j + num_so//2)] = []
+            for c in configs:
+                N = len(c)
+                creation = N - i - 1
+                annihilation = N - j - 1
+                if c[creation] == '0' and c[annihilation] == '1':
+                    hopped_c = c[: creation] + '1' + c[creation + 1 : annihilation] + '0' + c[annihilation + 1 :]
+                    parity = 1 - 2 * (sum([int(i) for i in c[creation + 1 : annihilation]]) % 2)
+                    entry_op = ''
+                    for q0, q in zip(o2q[c], o2q[hopped_c]):
+                        entry_op += hopping_in_entry[(q0, q)]
+                    entry_op += ('I' * half_qubits) 
+                    mapping[(i, j)].append((parity, entry_op))
+                    mapping[(i + num_so//2, j + num_so//2)].append((parity, dual(entry_op)))
+                elif creation == annihilation and c[creation] == '1':
+                    entry_op = ''
+                    for q in o2q[c]: 
+                        entry_op += hopping_in_entry[(q, q)]
+                    entry_op += ('I' * half_qubits)
+                    mapping[(i, j)].append((1, entry_op))
+                    mapping[(i + num_so//2, j + num_so//2)].append((1, dual(entry_op)))
+        return 2 * half_qubits, mapping
+
+    if mode == 'uhf':
+        mapping = {}
+        configs = all_config(num_so, num_e)
+        num_qubits = int(ceil(log2(len(configs))))
+        q2o, o2q = labeling_method(configs)
+        excitations = possible_excitations(num_so)
+        hopping_in_entry = {('0', '0'): '0',
+                            ('1', '1'): '1',
+                            ('0', '1'): '+',
+                            ('1', '0'): '-'} ## (from, to)
+        for i, j in excitations:
+            mapping[(i, j)] = []
+            for c in configs:
+                N = len(c)
+                creation = N - i - 1
+                annihilation = N - j - 1
+                if c[creation] == '0' and c[annihilation] == '1':
+                    hopped_c = c[: creation] + '1' + c[creation + 1 : annihilation] + '0' + c[annihilation + 1 :]
+                    parity = 1 - 2 * (sum([int(i) for i in c[creation + 1 : annihilation]]) % 2)
+                    entry_op = ''
+                    for q0, q in zip(o2q[c], o2q[hopped_c]):
+                        entry_op += hopping_in_entry[(q0, q)]
+                    mapping[(i, j)].append((parity, entry_op))
+                elif creation == annihilation and c[creation] == '1':
+                    entry_op = ''
+                    for q in o2q[c]: 
+                        entry_op += hopping_in_entry[(q, q)]
+                    mapping[(i, j)].append((1, entry_op))
+        return num_qubits, mapping
 
 
-def operator2labels(operators_with_coef, index=0, num_qubit=0):
+def operator2labels(operators_with_coef, index=0, num_qubits=0):
     # terminate the recursion when the pointer position (index) is larger than the length of the operator
-    if index == num_qubit:
+    if index == num_qubits:
         return operators_with_coef
     # the matrix here means X, Y, Z, I, 0, 1, +, - at the specified pointer position (index)
     matrix = operators_with_coef[0][1][index]
     # go to the next loop when there's no 0, 1, +, - at the specified position
     if matrix in ['X', 'Y', 'Z', 'I']:
-        return operator2labels(operators_with_coef, index+1, num_qubit)
+        return operator2labels(operators_with_coef, index+1, num_qubits)
     # define a new [coef, operator] list so that each of the [coef, operator] pair can be
     # separated into two terms with pauli matrix representation at the specified position
     new_operators_with_coef = []
@@ -187,15 +218,15 @@ def operator2labels(operators_with_coef, index=0, num_qubit=0):
             second_op = operator[:index] + 'Y' + operator[index+1:]
             new_operators_with_coef.append([0.5*coef, first_op])
             new_operators_with_coef.append([0.5j*coef, second_op]) 
-    return operator2labels(new_operators_with_coef, index+1, num_qubit)
+    return operator2labels(new_operators_with_coef, index+1, num_qubits)
 
 
 # add the `coef` parameter
-def operator2WeightedPauliOperator(operator, coef=1, num_qubit=None):
-    pauli_labels = operator2labels([[coef, operator]], num_qubit=num_qubit)
+def operator2WeightedPauliOperator(operator, coef=1, num_qubits=None):
+    pauli_labels = operator2labels([[coef, operator]], num_qubits=num_qubits)
     return WeightedPauliOperator([[coef, label2Pauli(label)] for (coef, label) in pauli_labels])
 
-def get_naive_mapping_from_entry(entry_operators, num_qubit=None):
+def get_naive_mapping_from_entry(entry_operators, num_qubits=None):
     """
     Get the naive mapping from a given entry_operator dictionary 
 
@@ -208,9 +239,9 @@ def get_naive_mapping_from_entry(entry_operators, num_qubit=None):
     for (i, j) in entry_operators.keys():
         for (coef, operator) in entry_operators[(i, j)]:
             if (i, j) not in naive_mapping:
-                naive_mapping[(i, j)] = operator2WeightedPauliOperator(operator, coef, num_qubit)
+                naive_mapping[(i, j)] = operator2WeightedPauliOperator(operator, coef, num_qubits)
             else:
-                naive_mapping[(i, j)] += operator2WeightedPauliOperator(operator, coef, num_qubit)
+                naive_mapping[(i, j)] += operator2WeightedPauliOperator(operator, coef, num_qubits)
     return naive_mapping
 
 def complete_mapping(naive_mapping):
@@ -223,7 +254,7 @@ def complete_mapping(naive_mapping):
             mapping[new_k] = WeightedPauliOperator(paulis)
     return mapping
 
-def fermionic2QubitMapping(n_so, n_e, labeling_method = default_labeling):
+def fermionic2QubitMapping(n_so, n_e, labeling_method = default_labeling, mode = 'rhf'):
     """
         Generate qubit mapping for given number of spin-orbitals and electrons 
         based on certain labeling method(from occupation configurations to qubit states).
@@ -244,8 +275,8 @@ def fermionic2QubitMapping(n_so, n_e, labeling_method = default_labeling):
                 
     """
     if labeling_method == None: labeling_method = default_labeling
-    num_qubit, entry_operators = get_entry_operators(n_so, n_e, labeling_method)
+    num_qubits, entry_operators = get_entry_operators(n_so, n_e, labeling_method, mode)
     # print(entry_operators)
-    naive_mapping = get_naive_mapping_from_entry(entry_operators, num_qubit)
+    naive_mapping = get_naive_mapping_from_entry(entry_operators, num_qubits)
     mapping = complete_mapping(naive_mapping)
     return mapping
