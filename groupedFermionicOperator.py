@@ -36,7 +36,7 @@ class groupedFermionicOperator:
     Two-electron terms (a_p^ a_q^ a_r a_s) are rearranged into products of (a_i^ a_j).
     (a_n^, a_n are creation and annihilation operators, respectively, acting on the n-th qubit.)
     """
-    def __init__(self, ferOp, num_electron, labeling_method=None):
+    def __init__(self, ferOp, num_electron, labeling_method=None, mode='rhf'):
         """
         This class rewrites a `FermionicOperator` into a grouped-operator form stored in `self.grouped_op`.
         The `self.grouped_op` is a dictionary containing information of all one- and two-electron terms.
@@ -53,15 +53,25 @@ class groupedFermionicOperator:
         
         Args:
             ferOp (qiskit.chemistry.FermionicOperator): second-quantized fermionic operator
-            mapping (dict((tuple(int, int)), qiskit.quantum_info.Pauli)): 
-                mapping from all allowed a_p^ a_q to Pauli operator
-
+            num_electron (int): number of electron in the system
+            labeling_method (function):
+                It maps each electron occupation configuration to a qubit computational basis state.
+                (Please refer to docString of fermionic2QuantumMapping for details)
+            mode (str): it should be either 'rhf' or 'uhf'.
+                'rhf' mode:
+                    Same number of spin-up and spin-down electrons. 
+                    Their configurations are encoded to qubits independently.
+                    (# of qubits = 2 * (ceil(log2(num_of_config(num_electron/2)))))
+                'uhf' mode:
+                    No restriction on spin conservation. All configuration are encoded to qubits.
+                    (# of qubits = ceil(log2(num_of_config(num_electron))))
         """
         self.grouped_op = {}
         self.THRESHOLD = 1e-6
         self.mapping = fermionic2QubitMapping(n_so = ferOp.modes,
                                              n_e = num_electron, 
-                                             labeling_method = labeling_method)
+                                             labeling_method = labeling_method,
+                                             mode = mode)
         
         h1, h2 = np.copy(ferOp.h1), np.copy(ferOp.h2)
         it1 = np.nditer(h1, flags=['multi_index'])
