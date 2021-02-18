@@ -14,5 +14,4 @@ def get_num_groups(qubitOp):
                 operator_in_num += '2'
         group_list.append(operator_in_num)
     group_list = list(dict.fromkeys(group_list))
-    print(group_list)
     return len(group_list)
