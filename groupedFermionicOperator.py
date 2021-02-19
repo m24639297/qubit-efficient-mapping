@@ -62,6 +62,10 @@ class groupedFermionicOperator:
                     Same number of spin-up and spin-down electrons. 
                     Their configurations are encoded to qubits independently.
                     (# of qubits = 2 * (ceil(log2(num_of_config(num_electron/2)))))
+                'stacked_rhf' mode:
+                    Same number of spin-up and spin-down electrons.
+                    All allowed configurations are encoded together
+                    (# of qubits = ceil(2 * log2(num_of_config(num_electron/2))))
                 'uhf' mode:
                     No restriction on spin conservation. All configuration are encoded to qubits.
                     (# of qubits = ceil(log2(num_of_config(num_electron))))

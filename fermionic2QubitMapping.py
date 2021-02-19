@@ -113,16 +113,17 @@ def get_entry_operators(num_so, num_e, labeling_method, mode):
                 coefficients(float).
 
     """
+    hopping_in_entry = {('0', '0'): '0',
+                        ('1', '1'): '1',
+                        ('0', '1'): '+',
+                        ('1', '0'): '-'} ## (from, to)
     if mode == 'rhf':
         mapping = {}
         configs = all_config(num_so // 2, num_e // 2)
         half_qubits = int(ceil(log2(len(configs))))
         q2o, o2q = labeling_method(configs)
         excitations = possible_excitations(num_so // 2)
-        hopping_in_entry = {('0', '0'): '0',
-                            ('1', '1'): '1',
-                            ('0', '1'): '+',
-                            ('1', '0'): '-'} ## (from, to)
+
         def dual(s):
             return s[half_qubits:] + s[:half_qubits]
 
@@ -151,16 +152,24 @@ def get_entry_operators(num_so, num_e, labeling_method, mode):
                     mapping[(i + num_so//2, j + num_so//2)].append((1, dual(entry_op)))
         return 2 * half_qubits, mapping
 
-    if mode == 'uhf':
+    if mode == 'uhf' or mode == 'stacked_rhf':
+        if mode == 'uhf':
+            configs = all_config(num_so, num_e)
+            excitations = possible_excitations(num_so)
+        else :
+            sub_configs = all_config(num_so // 2, num_e // 2)
+            configs = []
+            for i in sub_configs:
+                for j in sub_configs:
+                    configs.append(i + j)
+            excitations = possible_excitations(num_so // 2)
+            for p, q in excitations.copy():
+                excitations.add((p + num_so // 2, q + num_so // 2))
+
         mapping = {}
-        configs = all_config(num_so, num_e)
         num_qubits = int(ceil(log2(len(configs))))
         q2o, o2q = labeling_method(configs)
-        excitations = possible_excitations(num_so)
-        hopping_in_entry = {('0', '0'): '0',
-                            ('1', '1'): '1',
-                            ('0', '1'): '+',
-                            ('1', '0'): '-'} ## (from, to)
+        
         for i, j in excitations:
             mapping[(i, j)] = []
             for c in configs:
@@ -254,14 +263,14 @@ def complete_mapping(naive_mapping):
             mapping[new_k] = WeightedPauliOperator(paulis)
     return mapping
 
-def fermionic2QubitMapping(n_so, n_e, labeling_method = default_labeling, mode = 'rhf'):
+def fermionic2QubitMapping(num_so, num_e, labeling_method = default_labeling, mode = 'rhf'):
     """
         Generate qubit mapping for given number of spin-orbitals and electrons 
         based on certain labeling method(from occupation configurations to qubit states).
 
         Args:
-            n_so (int) : Number of spin-orbitals, must be even as we only consider RHF configuration.
-            n_e (int) : Number of electrons, must be even.
+            num_so (int) : Number of spin-orbitals, must be even as we only consider RHF configuration.
+            num_e (int) : Number of electrons, must be even.
             labeling_method (function) : 
                 It maps each electron occupation configuration to a qubit computational basis state.
                 By default it uses `default_labeling` method. 
@@ -275,7 +284,7 @@ def fermionic2QubitMapping(n_so, n_e, labeling_method = default_labeling, mode =
                 
     """
     if labeling_method == None: labeling_method = default_labeling
-    num_qubits, entry_operators = get_entry_operators(n_so, n_e, labeling_method, mode)
+    num_qubits, entry_operators = get_entry_operators(num_so, num_e, labeling_method, mode)
     # print(entry_operators)
     naive_mapping = get_naive_mapping_from_entry(entry_operators, num_qubits)
     mapping = complete_mapping(naive_mapping)
