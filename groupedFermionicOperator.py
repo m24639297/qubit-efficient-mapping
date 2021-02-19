@@ -72,8 +72,8 @@ class groupedFermionicOperator:
         """
         self.grouped_op = {}
         self.THRESHOLD = 1e-6
-        self.mapping = fermionic2QubitMapping(n_so = ferOp.modes,
-                                             n_e = num_electron, 
+        self.mapping = fermionic2QubitMapping(num_so = ferOp.modes,
+                                             num_e = num_electron, 
                                              labeling_method = labeling_method,
                                              mode = mode)
         
