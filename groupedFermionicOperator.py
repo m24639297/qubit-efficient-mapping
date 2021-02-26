@@ -140,6 +140,9 @@ class groupedFermionicOperator:
         """
         
         mapping = self.mapping
+        for i in mapping:
+            mapping[i] = mapping[i].chop(threshold=self.THRESHOLD)
+
         qubitOp = WeightedPauliOperator(paulis=[])
         for k, w in self.grouped_op.items():
             if np.ndim(k) == 1: ## one-e-term
