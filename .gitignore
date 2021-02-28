@@ -1,3 +1,9 @@
 *.ipynb
+*.docx
+*.pages
+
+
+.DS_Store
+
 
 __pycache__/*

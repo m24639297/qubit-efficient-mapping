@@ -76,7 +76,18 @@ class groupedFermionicOperator:
                                              num_e = num_electron, 
                                              labeling_method = labeling_method,
                                              mode = mode)
-        
+        self.set_ferOp(ferOp)
+        # h1, h2 = np.copy(ferOp.h1), np.copy(ferOp.h2)
+        # it1 = np.nditer(h1, flags=['multi_index'])
+        # it2 = np.nditer(h2, flags=['multi_index'])
+        # for h in it1:
+        #     key = it1.multi_index
+        #     self._add_an_h1(h, key)
+        # for h in it2:
+        #     key = it2.multi_index
+        #     self._add_an_h2(h, key)
+
+    def set_ferOp(self, ferOp):
         h1, h2 = np.copy(ferOp.h1), np.copy(ferOp.h2)
         it1 = np.nditer(h1, flags=['multi_index'])
         it2 = np.nditer(h2, flags=['multi_index'])
