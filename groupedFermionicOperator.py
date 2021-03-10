@@ -3,7 +3,8 @@ from qiskit.aqua.operators import WeightedPauliOperator
 from qiskit.quantum_info import Pauli
 
 import numpy as np
-from fermionic2QubitMapping import fermionic2QubitMapping
+# from fermionic2QubitMapping import fermionic2QubitMapping
+# from groupMapping import getmap
 
 def kDelta(i, j):
     return 1 * (i == j)
@@ -36,7 +37,7 @@ class groupedFermionicOperator:
     Two-electron terms (a_p^ a_q^ a_r a_s) are rearranged into products of (a_i^ a_j).
     (a_n^, a_n are creation and annihilation operators, respectively, acting on the n-th qubit.)
     """
-    def __init__(self, ferOp, num_electron, labeling_method=None, mode='rhf'):
+    def __init__(self, ferOp, num_electron, labeling_method=None, mode='rhf', slow=False):
         """
         This class rewrites a `FermionicOperator` into a grouped-operator form stored in `self.grouped_op`.
         The `self.grouped_op` is a dictionary containing information of all one- and two-electron terms.
@@ -72,10 +73,15 @@ class groupedFermionicOperator:
         """
         self.grouped_op = {}
         self.THRESHOLD = 1e-6
-        self.mapping = fermionic2QubitMapping(num_so = ferOp.modes,
-                                             num_e = num_electron, 
-                                             labeling_method = labeling_method,
-                                             mode = mode)
+        if slow:
+            from fermionic2QubitMapping import fermionic2QubitMapping
+            self.mapping = fermionic2QubitMapping(num_so = ferOp.modes,
+                                                 num_e = num_electron, 
+                                                 labeling_method = labeling_method,
+                                                 mode = mode)
+        else:
+            from groupMapping import getmap
+            self.mapping = getmap(ferOp.modes, num_electron)
         self.set_ferOp(ferOp)
         # h1, h2 = np.copy(ferOp.h1), np.copy(ferOp.h2)
         # it1 = np.nditer(h1, flags=['multi_index'])
