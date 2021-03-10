@@ -57,6 +57,17 @@ def default_labeling(configs):
         o2q[config] = q_label
     return q2o, o2q
 
+def reverse_labeling(configs):
+    q2o = {}  ## qubit label to occupation numbers
+    o2q = {}  ## occupation numbers to qubit label
+    num_qubits = ceil(log2(len(configs)))
+    for idx, config in enumerate(configs):
+        idx = 2**num_qubits - idx -1
+        q_label = '0' * (num_qubits - len(num2binstr(idx))) + num2binstr(idx)
+        q2o[q_label] = config
+        o2q[config] = q_label
+    return q2o, o2q
+
 def possible_excitations(num_so):
     excitations = set()
     for i in range(num_so):
