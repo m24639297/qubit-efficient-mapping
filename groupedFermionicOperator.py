@@ -4,6 +4,7 @@ from qiskit.quantum_info import Pauli
 
 import numpy as np
 from fermionic2QubitMapping import fermionic2QubitMapping
+from concurrent.futures import ProcessPoolExecutor
 
 def kDelta(i, j):
     return 1 * (i == j)
@@ -141,27 +142,69 @@ class groupedFermionicOperator:
             self.grouped_op[mut_key] -= coef * parity
         else:
             self.grouped_op[mut_key] = -coef * parity
-            
-    def to_paulis(self):
+    
+    def get_qubit_Op(self, group_op_items):
         """
-        Convert the grouped fermionic operator into qubit operators (sum of Pauli terms)
-        
-        Returns:
-            (qiskit.aqua.operators.WeightedPauliOperator) : qubit operator transformed based on `self.mapping`
-        """
-        
-        mapping = self.mapping
-        for i in mapping:
-            mapping[i] = mapping[i].chop(threshold=self.THRESHOLD)
+        Get qubit operator from the transition and weights from group operators. A helper function of to_paulis
+            Args:
+                    group_op_items (group-operator form) : a partial list of key-value pairs from self.group_op
 
+            Returns:
+                    (qiskit.aqua.operators.WeightedPauliOperator) : qubit operator transformed based on `self.mapping`
+        """
+        print("One Processor Processing...")
+        mapping = self.mapping
         qubitOp = WeightedPauliOperator(paulis=[])
-        for k, w in self.grouped_op.items():
-            if np.ndim(k) == 1: ## one-e-term
+        for k, w in group_op_items:
+            if np.ndim(k) == 1:  ## one-e-term
                 qubitOp += (w * mapping[k])
-            elif np.ndim(k) == 2: ## 2-e-term
+            elif np.ndim(k) == 2:  ## 2-e-term
                 k1, k2 = k
                 qubitOp += (w * mapping[k1] * mapping[k2])
             else:
                 raise ValueError('something wrong')
-        qubitOp.chop(threshold=self.THRESHOLD)
+        print("One Processor Done...")
+        return qubitOp
+
+    def to_paulis(self, cpu_count=1):
+        """
+        Convert the grouped fermionic operator into qubit operators (sum of Pauli terms)
+            Args:
+                    cpu_count (int) : number of CPUs (processes) to handle this function
+
+            Returns:
+                    (qiskit.aqua.operators.WeightedPauliOperator) : qubit operator transformed based on `self.mapping`
+        """
+        if cpu_count == 1:
+            mapping = self.mapping
+            qubitOp = WeightedPauliOperator(paulis=[])
+
+            for k, w in self.grouped_op.items():
+                if np.ndim(k) == 1: ## one-e-term
+                    qubitOp += (w * mapping[k])
+                elif np.ndim(k) == 2: ## 2-e-term
+                    k1, k2 = k
+                    qubitOp += (w * mapping[k1] * mapping[k2])
+                else:
+                    raise ValueError('something wrong')
+            qubitOp.chop(threshold=self.THRESHOLD)
+        elif cpu_count > 1:
+            arguments = []
+            group_op_items_per_cpu = len(self.grouped_op.items()) // cpu_count + 1
+            prev = 0
+            for i in range(cpu_count):
+                if i == cpu_count - 1:
+                    arguments.append(list(self.grouped_op.items())[prev:])
+                    break
+                end = group_op_items_per_cpu * (i + 1)
+                arguments.append(list(self.grouped_op.items())[prev:end])
+                prev = end
+            with ProcessPoolExecutor() as executor:
+                results = executor.map(self.get_qubit_Op, arguments)
+                qubitOp = WeightedPauliOperator(paulis=[])
+                for result in results:
+                    qubitOp += result
+            qubitOp.chop(threshold=self.THRESHOLD)
+        else:
+            raise ValueError('CPU count has to be greater or equal to 1')
         return qubitOp
